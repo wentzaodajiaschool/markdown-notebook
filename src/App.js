@@ -52,6 +52,7 @@ const Notebook = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editorMode, setEditorMode] = useState(EditorMode.EDIT);
   const [stats, setStats] = useState({ lines: 0, words: 0, chars: 0 });
+  const [uploadingImages, setUploadingImages] = useState({});
 
   // 引用編輯器元素
   const editorRef = useRef(null);
@@ -80,11 +81,25 @@ const Notebook = () => {
 
   // 處理圖片上傳
   const handleImageUpload = useCallback(async (file) => {
+    const uploadId = Date.now().toString();
+    const placeholderText = `![](照片上傳中... ${uploadId})`;
+    const newContent = currentChapter.content + '\n' + placeholderText;
+    handleContentChange(newContent);
+
+    setUploadingImages(prev => ({ ...prev, [uploadId]: true }));
+
     const imageUrl = await uploadToImgur(file);
+    
+    setUploadingImages(prev => ({ ...prev, [uploadId]: false }));
+
     if (imageUrl) {
       const imageMarkdown = `![uploaded image](${imageUrl})`;
-      const newContent = currentChapter.content + '\n' + imageMarkdown;
-      handleContentChange(newContent);
+      const updatedContent = newContent.replace(placeholderText, imageMarkdown);
+      handleContentChange(updatedContent);
+    } else {
+      // 如果上傳失敗，移除佔位符
+      const updatedContent = newContent.replace(placeholderText, '');
+      handleContentChange(updatedContent);
     }
   }, [currentChapter.content, handleContentChange]);
 
@@ -268,6 +283,11 @@ const Notebook = () => {
           </div>
         </div>
       </div>
+      {Object.values(uploadingImages).some(Boolean) && (
+        <div className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow">
+          正在上傳圖片...
+        </div>
+      )}
       <style jsx global>{`
         .wmde-markdown {
           font-size: 16px !important;
